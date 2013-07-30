@@ -1,7 +1,7 @@
 module ActionDispatch
   module Session
     class MongoStoreBase < AbstractStore
-      
+
       SESSION_RECORD_KEY = 'rack.session.record'.freeze
       begin
         ENV_SESSION_OPTIONS_KEY = Rack::Session::Abstract::ENV_SESSION_OPTIONS_KEY
@@ -40,7 +40,13 @@ module ActionDispatch
         end
 
         def find_session(id)
-          session_class.where(:_id => id).first || session_class.new(:_id => id)
+          return session_class.new(:_id => id) unless session = session_class.where(:_id => id).first
+          return session unless is_expired?(session)
+          session_class.new(:_id => id)
+        end
+
+        def is_expired?(session)
+          MongoSessionStore.expire_after && (session.updated_at < (Time.zone.now - MongoSessionStore.expire_after))
         end
 
         def get_session_model(env, sid)
